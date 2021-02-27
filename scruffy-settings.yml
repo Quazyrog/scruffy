@@ -1,0 +1,37 @@
+ClientSecret: NjkxNDI4NjM4NDczNTg0NjYx.Xnf1GQ.wm47foUe5ducKzOCtjvYEzro0b4
+Commands:
+  Prefix: 'scruffy> '
+DebugMode: true
+ExpectedVersion: 4
+Introductions:
+  Channel: 815001822665637908
+  CommonRoles: ["Admin"]
+  Enabled: True
+  JournalReadPath: sample_journal.csv
+  JournalWritePath: sample_journal.csv
+  GroupsToRolesMapping:
+    G1.1: ["Golemancer"]
+    G1.x: ["Golemancer"]
+  FuzzyMatchMaxLength: 20
+LogFile: scruffy.log
+LocalizedMessages:
+  Join.Prompt: >
+    Cześć!
+
+    Jestem bot Scruffy i witam Cię na serwerze Matematyki dla Ciekawych Świata!
+
+    Na początek proszę, żebyś na kanale **🤝przedstaw-się** napisał(a) swoje `Imię, Nazwisko` (np. "Geralt, z Rivii"); to pozwoli mi przypisać cię do odpowienich grup na serwerze.
+    Następnie przeczytaj regulamin na kanale "📜regulamin".
+
+  Introduction.NickUsedError: >
+    Zdaje się, że już mi się przedstawiłeś(aś) wcześniej. Jeżeli nie, to coś nie zadziałało i skontaktuj się, proszę, z prowadzącymi zajęcia.
+
+  Introduction.NotInJournal: >
+    Niestety nie mogę znaleźć Cię w dzinenniku.
+
+    Sprawdź, proszę, czy nie popełniłeś(aś) błędu wpisując swoje imię i nazwisko. Jeżeli tak, wpisz je jeszcze raz, poprawnie, na kanale powitalnym. W przeciwnym wypadku skontaktuj się z prowadzącymi.
+
+  Introduction.Success: >
+    Witaj, {first_name}! Jesteś w grupie {group}, więc przypisałem Ci role: {roles_list}.
+
+    Dobrej zabawy na zajęciach!

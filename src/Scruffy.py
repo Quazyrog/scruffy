@@ -18,7 +18,8 @@ Config = {
     },
     "Greetings": {
         "Enabled": False,
-        "ChannelId": None
+        "ChannelId": None,
+        "CommonRodeName": 2021
     }
 }
 
@@ -113,7 +114,8 @@ async def on_message(message: discord.Message):
 
 async def try_assign_group(message):
     GROUPS_MAP = {
-        ("Wojtek", "Matusiak"): "Admin",
+        ("Wojtek", "Matusiak"): "2_1.1",
+        ("Jakub", "Dudziński"): "2_1.1",
     }
     Logger.debug(f"Greeting received")
     name = message.content.split()
@@ -121,10 +123,30 @@ async def try_assign_group(message):
         return
     group_name = GROUPS_MAP.get((name[0], name[1]), None)
     Logger.debug(f"{name} is in group {group_name}")
+
+    # Change nickname; this may fail for admins
+    try:
+        await message.author.edit(nick=f"{name[0]} {name[1]}")
+    except discord.errors.Forbidden:
+        Logger.warning(f"Permission error when trying to set nickname for {message.author.name}; is it an admin?")
+
+    # Assign roles
+    added_group = False
+    added_common = False
     for role in await message.guild.fetch_roles():
         if role.name == group_name:
             await message.author.add_roles(role)
-            Logger.info(f"Assigned role {role.name}{{id={role.id}}} to {name}")
+            Logger.debug(f"Assigned role {role.name}{{id={role.id}}} to {name}")
+            added_group = True
+        if role.name == Config["Greetings"]["CommonRoleName"]:
+            await message.author.add_roles(role)
+            Logger.debug(f"Assigned role {role.name}{{id={role.id}}} to {name}")
+            added_common = True
+    # todo read groups at startup
+    if not added_group:
+        Logger.warning(f"Group {group_name} for user {message.author.name} not found")
+    if not added_common:
+        Logger.warning(f"Group {Config['Greetings']['CommonRoleName']} for user {message.author.name} not found")
 
 
 # Run the bot

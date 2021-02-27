@@ -48,7 +48,7 @@ class Journal:
             raise NickInUseError(f"Member with id {discord_id} requested to authorize twice")
         idx = self._indexed_names[name]
         self._indexed_ids[discord_id] = idx
-        member = self._data = self._data[idx]
+        member = self._data[idx]
         assert member["FirstName"] == first_name
         assert member["LastName"] == last_name
         assert not member["DiscordId"]

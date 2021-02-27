@@ -18,7 +18,7 @@ Config = {
     },
     "Greetings": {
         "Enabled": False,
-        "ChannelID": None
+        "ChannelId": None
     }
 }
 
@@ -105,8 +105,26 @@ async def remove_role(ctx, target_role: discord.Role, current_role: discord.Role
 
 
 @Scruffy.event
-async def on_message(message):
+async def on_message(message: discord.Message):
+    if message.channel.id == Config["Greetings"]["ChannelId"]:
+        await try_assign_group(message)
     await Scruffy.process_commands(message)
+
+
+async def try_assign_group(message):
+    GROUPS_MAP = {
+        ("Wojtek", "Matusiak"): "Admin",
+    }
+    Logger.debug(f"Greeting received")
+    name = message.content.split()
+    if len(name) != 2:
+        return
+    group_name = GROUPS_MAP.get((name[0], name[1]), None)
+    Logger.debug(f"{name} is in group {group_name}")
+    for role in await message.guild.fetch_roles():
+        if role.name == group_name:
+            await message.author.add_roles(role)
+            Logger.info(f"Assigned role {role.name}{{id={role.id}}} to {name}")
 
 
 # Run the bot

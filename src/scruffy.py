@@ -7,7 +7,7 @@ from discord.ext import commands
 import introductions
 
 
-VERSION = 4
+VERSION = 5
 logger = logging.getLogger("Scruffy")
 config = {
     "ExpectedVersion": VERSION,
@@ -20,7 +20,7 @@ config = {
     },
     "Introductions": {
         "Enabled": False,
-        "ChannelId": None,
+        "Channels": [],
         "CommonRoles": [],
         "GroupsToRolesMapping": {},
         "JournalReadPath": None,
@@ -141,8 +141,9 @@ async def on_member_join(member: discord.Member):
 
 @Scruffy.event
 async def on_message(message: discord.Message):
+    greetings_channels = config["Introductions"]["Channel"]
     if (config["Introductions"]["Enabled"]
-            and message.channel.id == config["Introductions"]["Channel"]
+            and (message.channel.id in greetings_channels or message.channel.name in greetings_channels)
             and not intro_journal.is_introduced(message.author)):
         await handle_introduction(message)
     await Scruffy.process_commands(message)

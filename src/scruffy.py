@@ -5,6 +5,7 @@ import yaml
 import discord
 from discord.ext import commands
 import introductions
+import argparse
 
 
 VERSION = 5
@@ -31,27 +32,57 @@ config = {
         "Join.Prompt": "Hello, {user.name}!",
         "Introduction.NickUsedError": "You've already introduced!",
         "Introduction.NotInJournal": "Sorry, but you're not on the list.",
+        "Introduction.Success": 'Hi, {first_name}! As member of group {group}, you were assigned roles: {roles_list}.',
         "Introduction.WrongFormat": 'Please type your name like: "Arya, Stark"; "Elon, Musk"; "Geralt, of Rivia"'
     }
 }
 
 
+# Parse command line arguments
+parser = argparse.ArgumentParser()
+generate_group = parser.add_mutually_exclusive_group()
+generate_group.add_argument("--generate-config", action="store_true",
+                            help="Generate config file for current version and exit")
+generate_group.add_argument("--update-config", action="store_true",
+                            help="Update old config file for current version and exit")
+parser.add_argument("config_file")
+commandline = parser.parse_args(sys.argv[1:])
+
 # Load or generate config file
-if len(sys.argv) > 2:
-    print(f"Usage: python {sys.argv[0]} [ConfigFile]")
-    sys.exit(1)
-config_file = sys.argv[1] if len(sys.argv) == 2 else ""
-if not os.path.isfile(config_file):
-    config_file = config_file or "scruffy-settings.yml"
-    with open(config_file, "w") as default_file:
-        default_file.write(yaml.dump(config))
-    print(f"Default config saved to {config_file}")
-    print(f"Please edit it and start bot with: python {sys.argv[0]} {config_file}")
+if commandline.generate_config:
+    try:
+        with open(commandline.config_file, "w") as cfg:
+            cfg.write(yaml.dump(config))
+    except IOError:
+        print(f"Unable to write file {commandline.config_file}")
+        sys.exit(1)
+    print(f"Default config saved to {commandline.config_file}")
     sys.exit(0)
-with open(config_file) as cfg:
-    config.update(yaml.safe_load(cfg))
-if config["ExpectedVersion"] != VERSION:
-    print("Warning: config file can be out of date for this version")
+try:
+    with open(commandline.config_file) as cfg:
+        loaded_config = yaml.safe_load(cfg)
+        for key in config:
+            if key not in loaded_config:
+                continue
+            if isinstance(key, dict):
+                config[key].update(loaded_config[key])
+            else:
+                config[key] = loaded_config[key]
+    if config["ExpectedVersion"] != VERSION:
+        print("Warning: config file can be out of date for this version")
+except IOError or yaml.YAMLError or ValueError:
+    print(f"Unable to read config file {commandline.config_file}")
+    sys.exit(1)
+if commandline.update_config:
+    try:
+        with open(commandline.config_file, "w") as cfg:
+            cfg.write(yaml.dump(config, allow_unicode=True))
+    except IOError:
+        print(f"Unable to write file {commandline.config_file}")
+        sys.exit(1)
+    print(f"Updated config in file {commandline.config_file}")
+    print(f"Still it may contain errors, so review it and set version to {VERSION}")
+    sys.exit(0)
 
 # Set up logs
 log_severity_level = logging.DEBUG if config["DebugMode"] else logging.INFO

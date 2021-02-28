@@ -31,6 +31,7 @@ config = {
         "Join.Prompt": "Hello, {user.name}!",
         "Introduction.NickUsedError": "You've already introduced!",
         "Introduction.NotInJournal": "Sorry, but you're not on the list.",
+        "Introduction.WrongFormat": 'Please type your name like: "Arya, Stark"; "Elon, Musk"; "Geralt, of Rivia"'
     }
 }
 
@@ -140,7 +141,9 @@ async def on_member_join(member: discord.Member):
 
 @Scruffy.event
 async def on_message(message: discord.Message):
-    if config["Introductions"]["Enabled"] and message.channel.id == config["Introductions"]["Channel"]:
+    if (config["Introductions"]["Enabled"]
+            and message.channel.id == config["Introductions"]["Channel"]
+            and not intro_journal.is_introduced(message.author)):
         await handle_introduction(message)
     await Scruffy.process_commands(message)
 
@@ -150,6 +153,7 @@ async def handle_introduction(message):
     try:
         first_name, last_name = list(x.strip() for x in message.content.split(",", maxsplit=1))
     except ValueError:
+        await message.author.send(config["LocalizedMessages"]["Introduction.WrongFormat"])
         return
 
     # Extract group and find user in journal
@@ -197,6 +201,7 @@ async def handle_introduction(message):
     notification = config["LocalizedMessages"]["Introduction.Success"] \
         .format(user=message.author, group=group, roles_list=", ".join(assigned),
                 first_name=first_name, last_name=last_name)
+    await message.add_reaction("🤖")
     await message.author.send(notification)
 
 

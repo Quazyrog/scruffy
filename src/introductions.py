@@ -72,3 +72,6 @@ class Journal:
         else:
             return None
         return self.match_name(member["FirstName"], member["LastName"], discord_id)
+
+    def is_introduced(self, user):
+        return user.id in self._indexed_ids

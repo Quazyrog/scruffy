@@ -61,11 +61,11 @@ if commandline.generate_config:
 try:
     with open(commandline.config_file) as cfg:
         loaded_config = yaml.safe_load(cfg)
-        for key in config:
+        for key, value in config.items():
             if key not in loaded_config:
                 continue
-            if isinstance(key, dict):
-                config[key].update(loaded_config[key])
+            if isinstance(value, dict):
+                value.update(loaded_config[key])
             else:
                 config[key] = loaded_config[key]
     if config["ExpectedVersion"] != VERSION:
@@ -105,7 +105,8 @@ discord_logger.addHandler(log_file_handler)
 if config["Introductions"]["Enabled"]:
     intro_journal = introductions.Journal()
     intro_journal.read(config["Introductions"]["JournalReadPath"])
-
+else:
+    intro_journal = None
 
 intents = discord.Intents.default()
 intents.members = True
@@ -172,10 +173,11 @@ async def on_member_join(member: discord.Member):
 
 @Scruffy.event
 async def on_message(message: discord.Message):
-    greetings_channels = config["Introductions"]["Channel"]
+    greetings_channels = config["Introductions"]["Channels"]
     if (config["Introductions"]["Enabled"]
-            and (message.channel.id in greetings_channels or message.channel.name in greetings_channels)
-            and not intro_journal.is_introduced(message.author)):
+            and message.channel.id in greetings_channels
+            and not intro_journal.is_introduced(message.author)
+            and not message.is_system()):
         await handle_introduction(message)
     await Scruffy.process_commands(message)
 
@@ -240,4 +242,7 @@ async def handle_introduction(message):
 # Run the bot
 logger.info("Scruffy reporting in!")
 Scruffy.run(config["ClientSecret"])
+if intro_journal and (path := config["Introductions"]["JournalWritePath"]):
+    intro_journal.save(path)
+    logger.info(f"Saved introduction journal to {path}")
 logger.info("Putting Scruffy in the sleep mode, bye!")

@@ -30,7 +30,7 @@ class Journal:
                     raise ValueError(f"Nick {member['DiscordId']} appears twice in journal file")
                 self._indexed_names[name] = len(self._data)
                 if member["DiscordId"]:
-                    self._indexed_ids = len(self._data)
+                    self._indexed_ids[member["DiscordId"]] = len(self._data)
                 self._data.append(member)
 
     def save(self, csv_path: str) -> None:

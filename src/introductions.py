@@ -1,6 +1,6 @@
 import csv
 import difflib
-from typing import Optional
+from typing import Optional, Tuple
 
 import discord
 
@@ -78,7 +78,7 @@ class Journal:
     def is_introduced(self, user):
         return user.id in self._indexed_ids
 
-    def name_of(self, user: discord.User) -> Optional[tuple[str, str]]:
+    def name_of(self, user: discord.User) -> Optional[Tuple[str, str]]:
         if user.id in self._indexed_ids:
             data = self._data[self._indexed_ids[user.id]]
             return data["FirstName"], data["LastName"]

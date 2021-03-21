@@ -302,20 +302,23 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     except discord.errors.Forbidden:
         logger.debug(f"Could not properly punish '{message.author}': privilege error!")
 
+    # send notifications
     forward_content = f"""
     {config["LocalizedMessages"]["Censorship.Time"]}: {datetime.now().isoformat()}
     {config["LocalizedMessages"]["Censorship.Author"]}: {author_name} <@{message.author.id}>
     {config["LocalizedMessages"]["Censorship.Reporter"]}: {reporter_name} <@{reporter.id}>
     {config["LocalizedMessages"]["Censorship.Content"]}: 
     {quoted_content}"""
-    forward_files = []
-    for attachment in message.attachments:
-        forward_files.append(await attachment.to_file())
+
+    async def send_notification(target_channel, header):
+        forward_files = []
+        for attachment in message.attachments:
+            forward_files.append(await attachment.to_file())
+        await target_channel.send(header + forward_content, files=forward_files)
+
+    await send_notification(message.author, config["LocalizedMessages"]["Censorship.NotificationHeader"])
     forward_channel = Scruffy.get_channel(config["Censorship"]["ForwardChannel"])
-    await forward_channel.send(
-        config["LocalizedMessages"]["Censorship.ForwardedHeader"] + forward_content, files=forward_files)
-    await message.author.send(
-        config["LocalizedMessages"]["Censorship.NotificationHeader"] + forward_content, files=forward_files)
+    await send_notification(forward_channel, config["LocalizedMessages"]["Censorship.ForwardedHeader"])
     await message.delete()
 # END on_raw_reaction_add
 

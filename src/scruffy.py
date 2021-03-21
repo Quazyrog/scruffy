@@ -1,19 +1,19 @@
 import os
 import logging
 import sys
+from datetime import datetime
+
 import yaml
 import discord
 from discord.ext import commands
 import introductions
 import argparse
 
-
 VERSION = 5
-logger = logging.getLogger("Scruffy")
 config = {
     "ExpectedVersion": VERSION,
     "DebugMode": True,
-    "LogFile":  "scruffy.log",
+    "LogFile": "scruffy.log",
     "ClientSecret": None,
     "Commands": {
         "Enabled": True,
@@ -28,15 +28,29 @@ config = {
         "JournalWritePath": None,
         "FuzzyMatchMaxLength": 0
     },
+    "Censorship": {
+        "Enabled": False,
+        "ReactionName": "report",
+        "RemoveRoles": [],
+        "ForwardChannel": None,
+        "Channels": [],
+        "Threshold": 1
+    },
     "LocalizedMessages": {
         "Join.Prompt": "Hello, {user.name}!",
         "Introduction.NickUsedError": "You've already introduced!",
         "Introduction.NotInJournal": "Sorry, but you're not on the list.",
         "Introduction.Success": 'Hi, {first_name}! As member of group {group}, you were assigned roles: {roles_list}.',
-        "Introduction.WrongFormat": 'Please type your name like: "Arya, Stark"; "Elon, Musk"; "Geralt, of Rivia"'
+        "Introduction.WrongFormat": 'Please type your name like: "Arya, Stark"; "Elon, Musk"; "Geralt, of Rivia"',
+        "Censorship.ForwardedHeader": "**Message Reported**",
+        "Censorship.NotificationHeader": "**YourMessageWasReported**",
+        "Censorship.Content": "Content",
+        "Censorship.Time": "Time",
+        "Censorship.Author": "Author",
+        "Censorship.Reporter": "Latest reporter",
     }
 }
-
+logger = logging.getLogger("Scruffy")
 
 # Parse command line arguments
 parser = argparse.ArgumentParser()
@@ -110,6 +124,8 @@ else:
 
 intents = discord.Intents.default()
 intents.members = True
+if config["Censorship"]["Enabled"]:
+    intents.reactions = True
 Scruffy = commands.Bot(command_prefix=config["Commands"]["Prefix"], intents=intents)
 
 
@@ -237,6 +253,40 @@ async def handle_introduction(message):
                 first_name=first_name, last_name=last_name)
     await message.add_reaction("🤖")
     await message.author.send(notification)
+
+
+@Scruffy.event
+async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
+    if (payload.channel_id not in config["Censorship"]["Channels"]
+            or payload.emoji.name != config["Censorship"]["ReactionName"]):
+        return
+
+    channel = Scruffy.get_channel(payload.channel_id)
+    reporter = Scruffy.get_user(payload.user_id)
+    message = await channel.fetch_message(payload.message_id)
+    logger.info(f"User '{reporter}' reported message of '{message.author}'")
+    author_name = reporter_name = "(UnknownName)"
+    if intro_journal:
+        author_name = "%s %s" % intro_journal.name_of(message.author)
+        reporter_name = "%s %s" % intro_journal.name_of(message.author)
+    quoted_content = "> " + message.content.replace("\n", "\n> ")
+
+    forward_content = f"""
+    {config["LocalizedMessages"]["Censorship.Time"]}: {datetime.now().isoformat()}
+    {config["LocalizedMessages"]["Censorship.Author"]}: {author_name} <@{message.author.id}>
+    {config["LocalizedMessages"]["Censorship.Reporter"]}: {reporter_name} <@{reporter.id}>
+    {config["LocalizedMessages"]["Censorship.Content"]}: 
+    {quoted_content}"""
+    forward_files = []
+    for attachment in message.attachments:
+        forward_files.append(await attachment.to_file())
+    forward_channel = Scruffy.get_channel(config["Censorship"]["ForwardChannel"])
+    await forward_channel.send(config["LocalizedMessages"]["Censorship.ForwardedHeader"]
+                         + forward_content, files=forward_files)
+    await message.author.send(config["LocalizedMessages"]["Censorship.NotificationHeader"]
+                        + forward_content, files=forward_files)
+    await message.delete()
+# END on_raw_reaction_add
 
 
 # Run the bot

@@ -24,6 +24,8 @@ class Journal:
             reader = csv.DictReader(stream)
             for member in reader:
                 name = (member["LastName"], member["FirstName"])
+                if member["DiscordId"]:
+                    member["DiscordId"] = int(member["DiscordId"])
                 if name in self._indexed_names:
                     raise ValueError(f"Name {name} appears twice in journal file")
                 if member["DiscordId"] and member["DiscordId"] in self._indexed_ids:

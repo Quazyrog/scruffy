@@ -9,7 +9,7 @@ from discord.ext import commands
 import introductions
 import argparse
 
-VERSION = 5
+VERSION = 6
 config = {
     "ExpectedVersion": VERSION,
     "DebugMode": True,
@@ -32,6 +32,7 @@ config = {
         "Enabled": False,
         "ReactionName": "report",
         "RemoveRoles": [],
+        "AddRoles": [],
         "ForwardChannel": None,
         "Channels": [],
         "Threshold": 0
@@ -267,8 +268,10 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     logger.info(f"User '{reporter}' reported message of '{message.author}'")
     author_name = reporter_name = "(UnknownName)"
     if intro_journal:
-        author_name = "%s %s" % intro_journal.name_of(message.author)
-        reporter_name = "%s %s" % intro_journal.name_of(message.author)
+        if name := intro_journal.name_of(message.author):
+            author_name = "%s %s" % name
+        if name := intro_journal.name_of(reporter):
+            reporter_name = "%s %s" % name
     quoted_content = "> " + message.content.replace("\n", "\n> ")
 
     threshold = config["Censorship"]["Threshold"]
@@ -290,6 +293,12 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
                 await message.author.remove_roles(role)
                 removed += 1
         logger.debug(f"Removed {removed} roles from '{message.author}'")
+    except discord.errors.Forbidden:
+        logger.debug(f"Could not properly punish '{message.author}': privilege error!")
+
+    try:
+        for role in config["Censorship"]["AddRoles"]:
+            await message.author.add_roles(message.guild.get_role(role))
     except discord.errors.Forbidden:
         logger.debug(f"Could not properly punish '{message.author}': privilege error!")
 

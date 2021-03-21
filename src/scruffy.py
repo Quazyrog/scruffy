@@ -34,7 +34,7 @@ config = {
         "RemoveRoles": [],
         "ForwardChannel": None,
         "Channels": [],
-        "Threshold": 1
+        "Threshold": 0
     },
     "LocalizedMessages": {
         "Join.Prompt": "Hello, {user.name}!",
@@ -43,7 +43,7 @@ config = {
         "Introduction.Success": 'Hi, {first_name}! As member of group {group}, you were assigned roles: {roles_list}.',
         "Introduction.WrongFormat": 'Please type your name like: "Arya, Stark"; "Elon, Musk"; "Geralt, of Rivia"',
         "Censorship.ForwardedHeader": "**Message Reported**",
-        "Censorship.NotificationHeader": "**YourMessageWasReported**",
+        "Censorship.NotificationHeader": "**Your message was reported**",
         "Censorship.Content": "Content",
         "Censorship.Time": "Time",
         "Censorship.Author": "Author",
@@ -271,6 +271,28 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
         reporter_name = "%s %s" % intro_journal.name_of(message.author)
     quoted_content = "> " + message.content.replace("\n", "\n> ")
 
+    threshold = config["Censorship"]["Threshold"]
+    if threshold > 1:
+        for reaction in message.reactions:
+            if reaction.emoji.name == config["Censorship"]["ReactionName"] \
+                    and reaction.count >= threshold:
+                break
+        else:
+            logger.debug("Reports number still below threshold")
+            return
+        logger.info(f"Message of user '{message.author}' reported {threshold} times; executing due procedures...")
+
+    try:
+        roles_to_remove = config["Censorship"]["RemoveRoles"]
+        removed = 0
+        for role in message.author.roles:
+            if role.id in roles_to_remove or role.name in roles_to_remove:
+                await message.author.remove_roles(role)
+                removed += 1
+        logger.debug(f"Removed {removed} roles from '{message.author}'")
+    except discord.errors.Forbidden:
+        logger.debug(f"Could not properly punish '{message.author}': privilege error!")
+
     forward_content = f"""
     {config["LocalizedMessages"]["Censorship.Time"]}: {datetime.now().isoformat()}
     {config["LocalizedMessages"]["Censorship.Author"]}: {author_name} <@{message.author.id}>
@@ -281,10 +303,10 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     for attachment in message.attachments:
         forward_files.append(await attachment.to_file())
     forward_channel = Scruffy.get_channel(config["Censorship"]["ForwardChannel"])
-    await forward_channel.send(config["LocalizedMessages"]["Censorship.ForwardedHeader"]
-                         + forward_content, files=forward_files)
-    await message.author.send(config["LocalizedMessages"]["Censorship.NotificationHeader"]
-                        + forward_content, files=forward_files)
+    await forward_channel.send(
+        config["LocalizedMessages"]["Censorship.ForwardedHeader"] + forward_content, files=forward_files)
+    await message.author.send(
+        config["LocalizedMessages"]["Censorship.NotificationHeader"] + forward_content, files=forward_files)
     await message.delete()
 # END on_raw_reaction_add
 

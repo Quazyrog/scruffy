@@ -48,7 +48,7 @@ config = {
         "Censorship.Content": "Content",
         "Censorship.Time": "Time",
         "Censorship.Author": "Author",
-        "Censorship.Reporter": "Latest reporter",
+        "Censorship.Reporter": "Reporters",
     }
 }
 logger = logging.getLogger("Scruffy")
@@ -266,24 +266,24 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     reporter = Scruffy.get_user(payload.user_id)
     message = await channel.fetch_message(payload.message_id)
     logger.info(f"User '{reporter}' reported message of '{message.author}'")
-    author_name = reporter_name = "(UnknownName)"
-    if intro_journal:
-        if name := intro_journal.name_of(message.author):
-            author_name = "%s %s" % name
-        if name := intro_journal.name_of(reporter):
-            reporter_name = "%s %s" % name
-    quoted_content = "> " + message.content.replace("\n", "\n> ")
+    author_name = "(UnknownName)"
+    if intro_journal and (name := intro_journal.name_of(message.author)):
+        author_name = "%s %s" % name
 
     threshold = config["Censorship"]["Threshold"]
+    reporters = []
     if threshold > 1:
         for reaction in message.reactions:
             if reaction.emoji.name == config["Censorship"]["ReactionName"] \
                     and reaction.count >= threshold:
+                for user in await reaction.users().flatten():
+                    reporters.append(user.id)
                 break
         else:
             logger.debug("Reports number still below threshold")
             return
         logger.info(f"Message of user '{message.author}' reported {threshold} times; executing due procedures...")
+
 
     try:
         roles_to_remove = config["Censorship"]["RemoveRoles"]
@@ -302,23 +302,26 @@ async def on_raw_reaction_add(payload: discord.RawReactionActionEvent):
     except discord.errors.Forbidden:
         logger.debug(f"Could not properly punish '{message.author}': privilege error!")
 
-    # send notifications
-    forward_content = f"""
-    {config["LocalizedMessages"]["Censorship.Time"]}: {datetime.now().isoformat()}
-    {config["LocalizedMessages"]["Censorship.Author"]}: {author_name} <@{message.author.id}>
-    {config["LocalizedMessages"]["Censorship.Reporter"]}: {reporter_name} <@{reporter.id}>
-    {config["LocalizedMessages"]["Censorship.Content"]}: 
-    {quoted_content}"""
-
-    async def send_notification(target_channel, header):
+    async def send_notification(target_channel, text):
         forward_files = []
         for attachment in message.attachments:
             forward_files.append(await attachment.to_file())
-        await target_channel.send(header + forward_content, files=forward_files)
+        await target_channel.send(text, files=forward_files)
 
-    await send_notification(message.author, config["LocalizedMessages"]["Censorship.NotificationHeader"])
+    quoted_content = "> " + message.content.replace("\n", "\n> ")
+    await send_notification(message.author, f"""{config["LocalizedMessages"]["Censorship.NotificationHeader"]}
+{config["LocalizedMessages"]["Censorship.Time"]}: {datetime.now().isoformat()}
+{config["LocalizedMessages"]["Censorship.Author"]}: {author_name} <@{message.author.id}>
+{config["LocalizedMessages"]["Censorship.Content"]}: 
+{quoted_content}""")
     forward_channel = Scruffy.get_channel(config["Censorship"]["ForwardChannel"])
-    await send_notification(forward_channel, config["LocalizedMessages"]["Censorship.ForwardedHeader"])
+    reporters = ", ".join("<@%i>" % r for r in reporters)
+    await send_notification(forward_channel, f"""{config["LocalizedMessages"]["Censorship.ForwardedHeader"]}
+{config["LocalizedMessages"]["Censorship.Time"]}: {datetime.now().isoformat()}
+{config["LocalizedMessages"]["Censorship.Author"]}: {author_name} <@{message.author.id}>
+{config["LocalizedMessages"]["Censorship.Reporter"]}: {reporters}
+{config["LocalizedMessages"]["Censorship.Content"]}: 
+{quoted_content}""")
     await message.delete()
 # END on_raw_reaction_add
 

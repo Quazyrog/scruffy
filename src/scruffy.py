@@ -180,6 +180,9 @@ async def write_introduction_journal(ctx):
         intro_journal.save(file)
         logger.info(f"Saved updated journal to {file}")
 
+@Scruffy.command()
+async def duck(ctx):
+    await ctx.author.send("Here, take this duck!\nhttps://i.kym-cdn.com/photos/images/newsfeed/000/556/010/c40.jpg")
 
 @Scruffy.event
 async def on_member_join(member: discord.Member):

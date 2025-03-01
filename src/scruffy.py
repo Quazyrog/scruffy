@@ -125,6 +125,7 @@ else:
 
 intents = discord.Intents.default()
 intents.members = True
+intents.message_content = True
 if config["Censorship"]["Enabled"]:
     intents.reactions = True
 Scruffy = commands.Bot(command_prefix=config["Commands"]["Prefix"], intents=intents)

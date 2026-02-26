@@ -9,7 +9,7 @@ from discord.ext import commands
 import introductions
 import argparse
 
-VERSION = 6
+VERSION = 7
 config = {
     "ExpectedVersion": VERSION,
     "DebugMode": True,
@@ -23,6 +23,7 @@ config = {
         "Enabled": False,
         "Channels": [],
         "CommonRoles": [],
+        "RemoveRoles": [],
         "GroupsToRolesMapping": {},
         "JournalReadPath": None,
         "JournalWritePath": None,
@@ -242,16 +243,19 @@ async def handle_introduction(message):
         logger.warning(f"Permission error when trying to set nickname for {message.author.name}; is it an admin?")
 
     # Assign roles
+    rm_roles = set(config["Introductions"]["RemoveRoles"])
     assigned = []
+    removed = []
     for role in await message.guild.fetch_roles():
         if role.name in roles or role.id in roles:
             await message.author.add_roles(role)
             logger.debug(f"Assigned role {role.name}{{id={role.id}}} to {message.author}")
             assigned.append(role.name)
-    if len(assigned) < len(roles):
-        logger.warning(f"Not all roles {roles} for {message.author} found in the server ({len(assigned)}/{len(roles)})")
-    else:
-        logger.info(f"Assigned roles {roles} to member {first_name} {last_name} ({message.author})")
+        if role.name in rm_roles or role.id in rm_roles:
+            await message.author.remove_roles(role)
+            logger.debug(f"Assigned role {role.name}{{id={role.id}}} to {message.author}")
+            removed.append(role.name)
+    logger.info(f"Roles added={assigned} and removed={removed} to/from member {first_name} {last_name} ({message.author})")
 
     notification = config["LocalizedMessages"]["Introduction.Success"] \
         .format(user=message.author, group=group, roles_list=", ".join(assigned),
